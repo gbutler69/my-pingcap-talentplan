@@ -10,10 +10,10 @@ fn main() {
 }
 
 fn arguments() -> clap::ArgMatches<'static> {
-    App::new("kvs")
-        .author("Gerald E. Butler, gerald.edward.butler@gmail.com")
+    App::new(env!("CARGO_PKG_NAME"))
+        .author(env!("CARGO_PKG_AUTHORS"))
         .about("Key-Value Store")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .subcommand(
             App::new("set")
                 .about("sets a <key> to the given <value>")
