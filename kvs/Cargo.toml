@@ -13,6 +13,7 @@ test = false
 name = "kvs"
 
 [dependencies]
+clap = "2.33"
 
 [dev-dependencies]
 assert_cmd = "1.0" # Was 0.11.0 in tutorial
