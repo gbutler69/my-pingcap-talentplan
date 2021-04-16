@@ -5,7 +5,7 @@ fn main() {
         ("set", Some(args)) => handle_subcommand_set(args),
         ("get", Some(args)) => handle_subcommand_get(args),
         ("rm", Some(args)) => handle_subcommand_rm(args),
-        _ => std::process::exit(1),
+        _ => handle_invalid_command(),
     }
 }
 
@@ -50,4 +50,9 @@ fn handle_subcommand_get(args: &clap::ArgMatches) {
 fn handle_subcommand_rm(args: &clap::ArgMatches) {
     eprintln!("unimplemented");
     std::process::exit(4);
+}
+
+fn handle_invalid_command() -> ! {
+    eprintln!("Invalid Options or Command");
+    std::process::exit(1)
 }
