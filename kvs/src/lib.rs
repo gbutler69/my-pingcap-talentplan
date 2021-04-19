@@ -21,7 +21,11 @@
 //! ```
 //!
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path};
+
+mod error;
+
+pub use error::{Error, ErrorKind, Result};
 
 /// Simple Key-Value Storage Type
 pub struct KvStore {
@@ -42,6 +46,15 @@ impl KvStore {
             storage: HashMap::new(),
         }
     }
+    /// open a disk-based, log-based storage at a path
+    ///
+    /// # Example
+    /// ```
+    ///
+    /// ```
+    pub fn open(location: &path::Path) -> Result<Self> {
+        todo!()
+    }
     /// set a key to a value in the Key-Value Storage instance
     ///
     /// If the key is already set to a value this overwrites the
@@ -57,8 +70,9 @@ impl KvStore {
     /// let value = store.get("key1".into());
     /// assert_eq!(value,Some("value2".into()));
     /// ```
-    pub fn set(&mut self, key: String, value: String) {
+    pub fn set(&mut self, key: String, value: String) -> Result<()> {
         self.storage.insert(key, value);
+        Ok(())
     }
     /// get the value stored under the given key or None if no such key
     ///
@@ -73,8 +87,8 @@ impl KvStore {
     /// let value = store.get("key2".into());
     /// assert_eq!(value,None);
     /// ```
-    pub fn get(&self, key: String) -> Option<String> {
-        self.storage.get(&key).map(String::clone)
+    pub fn get(&self, key: String) -> Result<Option<String>> {
+        Ok(self.storage.get(&key).map(String::clone))
     }
     /// remove the value stored under the given key or no-op if the key does not exist
     ///
@@ -91,8 +105,9 @@ impl KvStore {
     /// assert_eq!(value,None);
     /// store.remove("key2".into());
     /// ```
-    pub fn remove(&mut self, key: String) {
+    pub fn remove(&mut self, key: String) -> Result<()> {
         self.storage.remove(&key);
+        Ok(())
     }
 }
 

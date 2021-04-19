@@ -1,6 +1,7 @@
 use clap::{App, Arg};
+use kvs::Result;
 
-fn main() {
+fn main() -> Result<()> {
     match arguments().subcommand() {
         ("set", Some(args)) => handle_subcommand_set(args),
         ("get", Some(args)) => handle_subcommand_get(args),
@@ -37,22 +38,22 @@ fn arguments() -> clap::ArgMatches<'static> {
         .get_matches()
 }
 
-fn handle_subcommand_set(args: &clap::ArgMatches) {
+fn handle_subcommand_set(args: &clap::ArgMatches) -> Result<()> {
     eprintln!("unimplemented");
     std::process::exit(2);
 }
 
-fn handle_subcommand_get(args: &clap::ArgMatches) {
+fn handle_subcommand_get(args: &clap::ArgMatches) -> Result<()> {
     eprintln!("unimplemented");
     std::process::exit(3);
 }
 
-fn handle_subcommand_rm(args: &clap::ArgMatches) {
+fn handle_subcommand_rm(args: &clap::ArgMatches) -> Result<()> {
     eprintln!("unimplemented");
     std::process::exit(4);
 }
 
-fn handle_invalid_command() -> ! {
+fn handle_invalid_command() -> Result<()> {
     eprintln!("Invalid Options or Command");
     std::process::exit(1)
 }

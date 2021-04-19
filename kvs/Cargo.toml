@@ -14,7 +14,11 @@ name = "kvs"
 
 [dependencies]
 clap = "2.33"
+failure = "0.1.8"
+failure_derive = "0.1.8"
 
 [dev-dependencies]
 assert_cmd = "1.0" # Was 0.11.0 in tutorial
 predicates = "1.0"
+tempfile = "3.2.0"
+walkdir = "2.3.2"
