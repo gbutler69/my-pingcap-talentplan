@@ -1,4 +1,7 @@
 [workspace]
 members = [
-    "kvs"
+    "kvs",
+    "ex-bb2-serde-json",
+    "ex-bb2-serde-ron",
+    "ex-bb2-serde-bson"
 ]
