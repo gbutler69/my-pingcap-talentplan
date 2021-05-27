@@ -1,5 +1,8 @@
 use failure::{Backtrace, Fail};
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    io,
+};
 
 /// kvs error type
 #[derive(Debug)]
@@ -7,15 +10,21 @@ pub struct Error {
     inner: failure::Context<ErrorKind>,
 }
 
+impl Error {
+    /// create a new kvs Error of the given ErrorKind
+    pub fn new(kind: ErrorKind) -> Self {
+        Self {
+            inner: failure::Context::new(kind),
+        }
+    }
+}
+
 /// kvs error kind
 #[derive(Copy, Clone, Debug, PartialEq, Eq, failure_derive::Fail)]
 pub enum ErrorKind {
-    #[fail(display = "A filesystem error occurred")]
-    /// raised if there is an error accessing the filesystem
-    FilesystemError,
-    #[fail(display = "A network error occurred")]
-    /// raised if there is a network error
-    NetworkError,
+    #[fail(display = "An I/O error occurred")]
+    /// raised if there is an I/O error
+    IoError,
     #[fail(display = "An unknown error occurred")]
     /// raised for any other error
     UnknownError,
@@ -33,6 +42,14 @@ impl Fail for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(&self.inner, f)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(_: io::Error) -> Self {
+        Self {
+            inner: failure::Context::new(ErrorKind::IoError),
+        }
     }
 }
 
