@@ -6,7 +6,7 @@
 //! ```
 //! use kvs::KvStore;
 //!
-//! let mut store = KvStore::<String, String>::new(std::path::Path::new("tests.kvsdb")).unwrap();
+//! let mut store = KvStore::<String, String>::new(std::path::Path::new("testdb")).unwrap();
 //!
 //! let _ = store.set(String::from("key1"), String::from("value1"));
 //! let value1 = store.get(String::from("key1")).unwrap();
@@ -37,6 +37,7 @@ pub use error::{Error, ErrorKind, Result};
 /// Simple Key-Value Storage Type
 pub struct KvStore<K, V> {
     index: HashMap<K, u64>,
+    stale_count: u64,
     reader: io::BufReader<fs::File>,
     writer: io::BufWriter<fs::File>,
     phantom_value: marker::PhantomData<V>,
@@ -61,9 +62,11 @@ where
     /// ```
     /// use kvs::KvStore;
     ///
-    /// let store = KvStore::<String,String>::new(std::path::Path::new("tests.kvsdb")).unwrap();
+    /// let store = KvStore::<String,String>::new(std::path::Path::new("testdb")).unwrap();
     /// ```
     pub fn new(path: &Path) -> Result<Self> {
+        ensure_dir_exists(path);
+        let path = &path.join(path::Path::new("kvsdb.log"));
         let writer = io::BufWriter::new(
             fs::OpenOptions::new()
                 .create(true)
@@ -74,6 +77,7 @@ where
         let reader = io::BufReader::new(fs::OpenOptions::new().read(true).open(path)?);
         Ok(Self {
             index: HashMap::new(),
+            stale_count: 0,
             reader,
             writer,
             phantom_value: marker::PhantomData::default(),
@@ -85,33 +89,44 @@ where
     /// ```
     /// use kvs::KvStore;
     ///
-    /// let store = KvStore::<String,String>::open(std::path::Path::new("tests.kvsdb")).unwrap();
+    /// let store = KvStore::<String,String>::open(std::path::Path::new("testdb")).unwrap();
     /// ```
     pub fn open(path: &path::Path) -> Result<Self> {
-        let writer = io::BufWriter::new(
+        ensure_dir_exists(path);
+        let path = &path.join(path::Path::new("kvsdb.log"));
+        let mut writer = io::BufWriter::new(
             fs::OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(path)?,
         );
+        writer.seek(io::SeekFrom::End(0))?;
         let reader = io::BufReader::new(fs::OpenOptions::new().read(true).open(path)?);
         let index = HashMap::new();
         let mut kv_store = Self {
             index,
+            stale_count: 0,
             reader,
             writer,
             phantom_value: marker::PhantomData::default(),
         };
         while let Some(rec) = kv_store.read_next_record()? {
-            let _ = match rec {
+            match rec {
                 Record {
                     db_key,
                     key,
                     value: Some(_),
-                } => kv_store.index.insert(key, db_key),
+                } => {
+                    if kv_store.index.insert(key, db_key).is_some() {
+                        kv_store.stale_count += 1;
+                    }
+                }
                 Record {
                     key, value: None, ..
-                } => kv_store.index.remove(&key),
+                } => {
+                    kv_store.index.remove(&key);
+                    kv_store.stale_count += 1;
+                }
             };
         }
         Ok(kv_store)
@@ -135,7 +150,7 @@ where
     /// ```
     /// use kvs::KvStore;
     ///
-    /// let mut store = KvStore::<String,String>::new(std::path::Path::new("tests.kvsdb")).unwrap();
+    /// let mut store = KvStore::<String,String>::new(std::path::Path::new("testdb")).unwrap();
     /// let _ = store.set("key1".into(),"value1".into());
     /// let _ = store.set("key1".into(),"value2".into());
     /// let value = store.get("key1".into()).unwrap();
@@ -161,7 +176,7 @@ where
     /// ```
     /// use kvs::KvStore;
     ///
-    /// let mut store = KvStore::<String,String>::new(std::path::Path::new("tests.kvsdb")).unwrap();
+    /// let mut store = KvStore::<String,String>::new(std::path::Path::new("testdb")).unwrap();
     /// let _ = store.set("key1".into(),"value1".into());
     /// let value = store.get("key1".into()).unwrap();
     /// assert_eq!(value,Some("value1".into()));
@@ -191,7 +206,7 @@ where
     /// ```
     /// use kvs::KvStore;
     ///
-    /// let mut store = KvStore::<String,String>::new(std::path::Path::new("tests.kvsdb")).unwrap();
+    /// let mut store = KvStore::<String,String>::new(std::path::Path::new("testdb")).unwrap();
     /// let _ = store.set("key1".into(),"value1".into());
     /// let value = store.get("key1".into()).unwrap();
     /// assert_eq!(value,Some("value1".into()));
@@ -201,19 +216,31 @@ where
     /// let _ = store.remove("key2".into());
     /// ```
     pub fn remove(&mut self, key: K) -> Result<()> {
-        let rec = Record::<K, V> {
-            db_key: self.writer.get_ref().stream_position()?,
-            key: key.clone(),
-            value: None,
-        };
-        if serde_asn1_der::to_writer(&rec, &mut self.writer).is_err() {
-            self.writer.seek(io::SeekFrom::Start(rec.db_key))?;
-            return Err(Error::new(ErrorKind::IoError));
+        match self.index.contains_key(&key) {
+            true => {
+                let rec = Record::<K, V> {
+                    db_key: self.writer.get_ref().stream_position()?,
+                    key: key.clone(),
+                    value: None,
+                };
+                if serde_asn1_der::to_writer(&rec, &mut self.writer).is_err() {
+                    self.writer.seek(io::SeekFrom::Start(rec.db_key))?;
+                    return Err(Error::new(ErrorKind::IoError));
+                }
+                let _ = self.writer.flush();
+                self.index.remove(&key);
+                Ok(())
+            }
+            false => Err(Error::new(ErrorKind::KeyNotPresent)),
         }
-        let _ = self.writer.flush();
-        self.index.remove(&key);
-        Ok(())
     }
+}
+
+fn ensure_dir_exists(path: &Path) {
+    if !path.exists() {
+        let _ = fs::create_dir(path);
+    }
+    assert!(path.is_dir());
 }
 
 #[cfg(test)]

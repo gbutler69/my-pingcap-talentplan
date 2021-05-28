@@ -2,7 +2,7 @@
 fn doc_test_package() {
     use crate::KvStore;
 
-    let mut store = KvStore::<String, String>::open(std::path::Path::new("tests.kvsdb")).unwrap();
+    let mut store = KvStore::<String, String>::open(std::path::Path::new("testdb")).unwrap();
 
     let _ = store.set(String::from("key1"), String::from("value1"));
     let value1 = store.get(String::from("key1")).unwrap();

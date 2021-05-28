@@ -25,6 +25,9 @@ pub enum ErrorKind {
     #[fail(display = "An I/O error occurred")]
     /// raised if there is an I/O error
     IoError,
+    #[fail(display = "Key not present in database")]
+    /// raised if key is not present on a remove
+    KeyNotPresent,
     #[fail(display = "An unknown error occurred")]
     /// raised for any other error
     UnknownError,
