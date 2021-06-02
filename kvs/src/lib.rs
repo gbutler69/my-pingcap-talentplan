@@ -69,7 +69,8 @@ where
     /// ```
     pub fn new(path: &Path) -> Result<Self> {
         ensure_dir_exists(path);
-        Self::init_self(&make_db_log_path(path), true)
+        let db_path = use_existing_or_create_new_db_log_path(path)?;
+        Self::init_self(&db_path, true)
     }
     /// open a disk-based, log-based storage at a path
     /// If the file exists it opens for reading and appending. If the file does not exist it creates it.
@@ -81,11 +82,7 @@ where
     /// ```
     pub fn open(path: &path::Path) -> Result<Self> {
         ensure_dir_exists(path);
-        let db_path = match latest_log_for_dir(path) {
-            Ok(Some(path)) => path,
-            Ok(None) => make_db_log_path(path),
-            Err(err) => return Err(err),
-        };
+        let db_path = use_existing_or_create_new_db_log_path(path)?;
         let mut kv_store = Self::init_self(&db_path, false)?;
         kv_store.load_index()?;
         Ok(kv_store)
@@ -273,8 +270,7 @@ where
         while let Some(mut rec) = self.read_next_record()? {
             match self.index.get(&rec.key) {
                 Some(current_db_key) if *current_db_key == rec.db_key => {
-                    let (key, db_key) =
-                        (rec.key.clone(), compacted_writer.stream_position().unwrap());
+                    let (key, db_key) = (rec.key.clone(), compacted_writer.stream_position()?);
                     rec.db_key = db_key;
                     write_record_to_writer(rec, &mut compacted_writer)?;
                     compacted_index.insert(key, db_key);
@@ -325,6 +321,14 @@ fn ensure_dir_exists(path: &Path) {
         let _ = fs::create_dir(path);
     }
     assert!(path.is_dir());
+}
+fn use_existing_or_create_new_db_log_path(path: &Path) -> Result<path::PathBuf> {
+    let db_path = match latest_log_for_dir(path) {
+        Ok(Some(path)) => path,
+        Ok(None) => make_db_log_path(path),
+        Err(err) => return Err(err),
+    };
+    Ok(db_path)
 }
 fn latest_log_for_dir(path: &path::Path) -> Result<Option<path::PathBuf>> {
     let mut max_modified = None;

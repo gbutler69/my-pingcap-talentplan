@@ -1,3 +1,5 @@
+use std::path;
+
 use clap::{App, Arg};
 use kvs::Result;
 
@@ -39,18 +41,33 @@ fn arguments() -> clap::ArgMatches<'static> {
 }
 
 fn handle_subcommand_set(args: &clap::ArgMatches) -> Result<()> {
-    eprintln!("unimplemented");
-    std::process::exit(2);
+    let store = &mut kvs::KvStore::<String, String>::open(path::Path::new("./"))?;
+    store.set(
+        args.value_of("key").unwrap().into(),
+        args.value_of("value").unwrap().into(),
+    )
 }
 
 fn handle_subcommand_get(args: &clap::ArgMatches) -> Result<()> {
-    eprintln!("unimplemented");
-    std::process::exit(3);
+    let store = &mut kvs::KvStore::<String, String>::open(path::Path::new("./"))?;
+    match store.get(args.value_of("key").unwrap().into()) {
+        Ok(Some(value)) => println!("{}", value),
+        Ok(None) => println!("Key not found"),
+        Err(err) => return Err(err),
+    }
+    Ok(())
 }
 
 fn handle_subcommand_rm(args: &clap::ArgMatches) -> Result<()> {
-    eprintln!("unimplemented");
-    std::process::exit(4);
+    let store = &mut kvs::KvStore::<String, String>::open(path::Path::new("./"))?;
+    match store.remove(args.value_of("key").unwrap().into()) {
+        Ok(_) => Ok(()),
+        Err(err) if *err.kind() == kvs::ErrorKind::KeyNotPresent => {
+            println!("Key not found");
+            Err(err)
+        }
+        Err(err) => Err(err),
+    }
 }
 
 fn handle_invalid_command() -> Result<()> {

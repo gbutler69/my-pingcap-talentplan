@@ -17,6 +17,11 @@ impl Error {
             inner: failure::Context::new(kind),
         }
     }
+
+    /// gets a referenced to the ErrorKind of this Error
+    pub fn kind(&self) -> &ErrorKind {
+        self.inner.get_context()
+    }
 }
 
 /// kvs error kind
