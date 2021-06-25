@@ -1,4 +1,8 @@
-use std::{error::Error, io, net, str, vec};
+use std::{
+    error::Error,
+    io::{self, BufRead, Write},
+    net, str, vec,
+};
 
 use clap::{App, Arg};
 
@@ -162,7 +166,7 @@ fn read_simple_string_from(
     stream: &mut io::BufReader<net::TcpStream>,
 ) -> Result<FieldType, Box<dyn Error>> {
     let mut buf = String::default();
-    let _ = io::BufRead::read_line(stream, &mut buf)?;
+    let _ = stream.read_line(&mut buf)?;
     buf.pop();
     if buf.chars().last().unwrap_or('\0') != '\r' {
         Err(Box::new(io::Error::new(
@@ -223,10 +227,6 @@ fn send_simple_message(
 ) -> Result<(), Box<dyn Error>> {
     let message = format!("+{}\r\n", message);
     let buf = message.as_bytes();
-    let mut start = 0;
-    while start < buf.len() {
-        let written = io::Write::write(&mut stream, &buf[start..])?;
-        start += written;
-    }
+    stream.write_all(buf)?;
     Ok(())
 }
