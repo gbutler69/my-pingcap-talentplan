@@ -1,8 +1,4 @@
-use std::{
-    error::Error,
-    io::{self, Write},
-    net, str, vec,
-};
+use std::{error::Error, io, net, str, vec};
 
 use clap::{App, Arg};
 
@@ -49,6 +45,7 @@ fn arguments() -> clap::ArgMatches<'static> {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum FieldType {
     SimpleString {
         command: Option<String>,
@@ -197,25 +194,25 @@ fn read_simple_string_from(
 }
 
 fn read_error_from(
-    stream: &mut io::BufReader<net::TcpStream>,
+    _stream: &mut io::BufReader<net::TcpStream>,
 ) -> Result<FieldType, Box<dyn Error>> {
     todo!()
 }
 
 fn read_integer_from(
-    stream: &mut io::BufReader<net::TcpStream>,
+    _stream: &mut io::BufReader<net::TcpStream>,
 ) -> Result<FieldType, Box<dyn Error>> {
     todo!()
 }
 
 fn read_bulk_data_from(
-    stream: &mut io::BufReader<net::TcpStream>,
+    _stream: &mut io::BufReader<net::TcpStream>,
 ) -> Result<FieldType, Box<dyn Error>> {
     todo!()
 }
 
 fn read_array_from(
-    stream: &mut io::BufReader<net::TcpStream>,
+    _stream: &mut io::BufReader<net::TcpStream>,
 ) -> Result<FieldType, Box<dyn Error>> {
     todo!()
 }
@@ -227,11 +224,8 @@ fn send_simple_message(
     let message = format!("+{}\r\n", message);
     let buf = message.as_bytes();
     let mut start = 0;
-    loop {
-        let written = stream.write(&buf[start..])?;
-        if written + start == buf.len() {
-            break;
-        }
+    while start < buf.len() {
+        let written = io::Write::write(&mut stream, &buf[start..])?;
         start += written;
     }
     Ok(())
