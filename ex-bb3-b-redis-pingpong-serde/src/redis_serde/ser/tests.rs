@@ -501,3 +501,315 @@ fn test_tuple() -> Result<()> {
     assert_eq!(expected.as_bytes(), buf.as_slice());
     Ok(())
 }
+
+mod test_tuple_struct {
+    use super::super::*;
+
+    #[derive(Serialize)]
+    struct TupleStruct<'a>(
+        bool,
+        char,
+        char,
+        u8,
+        u16,
+        u32,
+        u64,
+        i8,
+        i16,
+        i32,
+        i64,
+        &'a str,
+        &'a str,
+        (u32, u8, i16, &'a str),
+        [u32; 3],
+    );
+
+    #[test]
+    fn test_tuple_struct() -> Result<()> {
+        let tuple = TupleStruct(
+            true,
+            '\0',
+            char::MAX,
+            u8::MIN,
+            u16::MAX,
+            u32::MIN,
+            u64::MAX,
+            i8::MIN,
+            i16::MAX,
+            i32::MIN,
+            i64::MAX,
+            "Test this is",
+            "This is a\r\ntest",
+            (5, 6, 7, "Test Also"),
+            [8, 9, 10],
+        );
+        let mut expected = "*15\r\n:1\r\n".to_owned();
+        expected += format!(":{}\r\n", tuple.1 as u32).as_str();
+        expected += format!(":{}\r\n", tuple.2 as u32).as_str();
+        expected += format!(":{}\r\n", tuple.3).as_str();
+        expected += format!(":{}\r\n", tuple.4).as_str();
+        expected += format!(":{}\r\n", tuple.5).as_str();
+        expected += format!(":{}\r\n", tuple.6).as_str();
+        expected += format!(":{}\r\n", tuple.7).as_str();
+        expected += format!(":{}\r\n", tuple.8).as_str();
+        expected += format!(":{}\r\n", tuple.9).as_str();
+        expected += format!(":{}\r\n", tuple.10).as_str();
+        expected += format!("+{}\r\n", tuple.11).as_str();
+        expected += format!("${}\r\n{}\r\n", tuple.12.len(), tuple.12).as_str();
+        expected += "*4\r\n";
+        expected += format!(":{}\r\n", tuple.13 .0).as_str();
+        expected += format!(":{}\r\n", tuple.13 .1).as_str();
+        expected += format!(":{}\r\n", tuple.13 .2).as_str();
+        expected += format!("+{}\r\n", tuple.13 .3).as_str();
+        expected += "\r\n";
+        expected += "*3\r\n";
+        expected += format!(":{}\r\n", tuple.14[0]).as_str();
+        expected += format!(":{}\r\n", tuple.14[1]).as_str();
+        expected += format!(":{}\r\n", tuple.14[2]).as_str();
+        expected += "\r\n";
+        expected += "\r\n";
+
+        let mut buf = Vec::new();
+        {
+            let mut buf_writer = io::BufWriter::new(&mut buf);
+            to_writer(&mut buf_writer, tuple)?;
+        }
+
+        assert_eq!(expected.as_bytes(), buf.as_slice());
+        Ok(())
+    }
+}
+
+mod test_tuple_variant {
+    use super::super::*;
+
+    #[derive(Serialize)]
+    #[allow(dead_code)]
+    enum WithTupleVariant<'a> {
+        Something,
+        TupleStruct(
+            bool,
+            char,
+            char,
+            u8,
+            u16,
+            u32,
+            u64,
+            i8,
+            i16,
+            i32,
+            i64,
+            &'a str,
+            &'a str,
+            (u32, u8, i16, &'a str),
+            [u32; 3],
+        ),
+    }
+
+    #[test]
+    fn test_tuple_struct() -> Result<()> {
+        let tuple = WithTupleVariant::TupleStruct(
+            true,
+            '\0',
+            char::MAX,
+            u8::MIN,
+            u16::MAX,
+            u32::MIN,
+            u64::MAX,
+            i8::MIN,
+            i16::MAX,
+            i32::MIN,
+            i64::MAX,
+            "Test this is",
+            "This is a\r\ntest",
+            (5, 6, 7, "Test Also"),
+            [8, 9, 10],
+        );
+        let mut expected = "*2\r\n:1\r\n*15\r\n:1\r\n".to_owned();
+        match tuple {
+            WithTupleVariant::TupleStruct(
+                _,
+                t1,
+                t2,
+                t3,
+                t4,
+                t5,
+                t6,
+                t7,
+                t8,
+                t9,
+                t10,
+                t11,
+                t12,
+                t13,
+                t14,
+            ) => {
+                expected += format!(":{}\r\n", t1 as u32).as_str();
+                expected += format!(":{}\r\n", t2 as u32).as_str();
+                expected += format!(":{}\r\n", t3).as_str();
+                expected += format!(":{}\r\n", t4).as_str();
+                expected += format!(":{}\r\n", t5).as_str();
+                expected += format!(":{}\r\n", t6).as_str();
+                expected += format!(":{}\r\n", t7).as_str();
+                expected += format!(":{}\r\n", t8).as_str();
+                expected += format!(":{}\r\n", t9).as_str();
+                expected += format!(":{}\r\n", t10).as_str();
+                expected += format!("+{}\r\n", t11).as_str();
+                expected += format!("${}\r\n{}\r\n", t12.len(), t12).as_str();
+                expected += "*4\r\n";
+                expected += format!(":{}\r\n", t13.0).as_str();
+                expected += format!(":{}\r\n", t13.1).as_str();
+                expected += format!(":{}\r\n", t13.2).as_str();
+                expected += format!("+{}\r\n", t13.3).as_str();
+                expected += "\r\n";
+                expected += "*3\r\n";
+                expected += format!(":{}\r\n", t14[0]).as_str();
+                expected += format!(":{}\r\n", t14[1]).as_str();
+                expected += format!(":{}\r\n", t14[2]).as_str();
+                expected += "\r\n";
+                expected += "\r\n";
+                expected += "\r\n";
+            }
+            _ => unreachable!("should never happen"),
+        }
+        let mut buf = Vec::new();
+        {
+            let mut buf_writer = io::BufWriter::new(&mut buf);
+            to_writer(&mut buf_writer, tuple)?;
+        }
+
+        assert_eq!(expected.as_bytes(), buf.as_slice());
+        Ok(())
+    }
+}
+
+mod test_map {
+    use std::collections::HashMap;
+
+    use super::super::*;
+
+    #[test]
+    fn test_map() -> Result<()> {
+        let map = &mut HashMap::<u8, String>::new();
+        map.insert(1, "Test1".into());
+        map.insert(2, "Test2".into());
+        map.insert(3, "Test3".into());
+        map.insert(4, "Test4".into());
+        map.insert(5, "Test5".into());
+
+        let mut expected = "*5\r\n".to_owned();
+        for (k, v) in map.iter() {
+            expected += "*2\r\n";
+            expected += format!(":{}\r\n", k).as_str();
+            expected += format!("+{}\r\n", v).as_str();
+            expected += "\r\n";
+        }
+        expected += "\r\n";
+
+        let mut buf = Vec::new();
+        {
+            let mut buf_writer = io::BufWriter::new(&mut buf);
+            to_writer(&mut buf_writer, map)?;
+        }
+
+        assert_eq!(expected.as_bytes(), buf.as_slice());
+        Ok(())
+    }
+}
+
+mod test_struct {
+
+    use super::super::*;
+
+    #[derive(Serialize)]
+    struct TestStruct {
+        field1: u8,
+        field2: bool,
+        field3: String,
+        field4: u32,
+    }
+
+    #[test]
+    fn test_struct() -> Result<()> {
+        let test_struct = TestStruct {
+            field1: 127,
+            field2: true,
+            field3: "This is a test".into(),
+            field4: u32::MAX / 2,
+        };
+
+        let mut expected = "*4\r\n".to_owned();
+        expected += format!("*2\r\n+field1\r\n:{}\r\n\r\n", test_struct.field1).as_str();
+        expected += format!(
+            "*2\r\n+field2\r\n:{}\r\n\r\n",
+            if test_struct.field2 { 1 } else { 0 }
+        )
+        .as_str();
+        expected += format!("*2\r\n+field3\r\n+{}\r\n\r\n", test_struct.field3).as_str();
+        expected += format!("*2\r\n+field4\r\n:{}\r\n\r\n", test_struct.field4).as_str();
+        expected += "\r\n";
+
+        let mut buf = Vec::new();
+        {
+            let mut buf_writer = io::BufWriter::new(&mut buf);
+            to_writer(&mut buf_writer, test_struct)?;
+        }
+
+        assert_eq!(expected.as_bytes(), buf.as_slice());
+        Ok(())
+    }
+}
+
+mod test_struct_variant {
+
+    use super::super::*;
+
+    #[derive(Serialize)]
+    #[allow(dead_code)]
+    enum WithStructVariant {
+        Variant1,
+        TestStruct {
+            field1: u8,
+            field2: bool,
+            field3: String,
+            field4: u32,
+        },
+    }
+
+    #[test]
+    fn test_struct_variant() -> Result<()> {
+        let test_struct = WithStructVariant::TestStruct {
+            field1: 127,
+            field2: true,
+            field3: "This is a test".into(),
+            field4: u32::MAX / 2,
+        };
+
+        let mut expected = "*2\r\n:1\r\n*4\r\n".to_owned();
+        match test_struct {
+            WithStructVariant::TestStruct {
+                ref field1,
+                ref field2,
+                ref field3,
+                ref field4,
+            } => {
+                expected += format!("*2\r\n+field1\r\n:{}\r\n\r\n", field1).as_str();
+                expected +=
+                    format!("*2\r\n+field2\r\n:{}\r\n\r\n", if *field2 { 1 } else { 0 }).as_str();
+                expected += format!("*2\r\n+field3\r\n+{}\r\n\r\n", field3).as_str();
+                expected += format!("*2\r\n+field4\r\n:{}\r\n\r\n", field4).as_str();
+            }
+            _ => unreachable!("this will never happen"),
+        }
+        expected += "\r\n\r\n";
+
+        let mut buf = Vec::new();
+        {
+            let mut buf_writer = io::BufWriter::new(&mut buf);
+            to_writer(&mut buf_writer, test_struct)?;
+        }
+
+        assert_eq!(expected.as_bytes(), buf.as_slice());
+        Ok(())
+    }
+}

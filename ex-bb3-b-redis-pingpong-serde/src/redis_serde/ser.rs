@@ -184,38 +184,52 @@ impl<'a, 'writer, W: io::Write> ser::Serializer for &'a mut Serializer<'writer, 
 
     fn serialize_tuple_struct(
         self,
-        name: &'static str,
+        _name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        todo!()
+        self.writer.write_all(format!("*{}\r\n", len).as_bytes())?;
+        Ok(self)
     }
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         variant_index: u32,
-        variant: &'static str,
+        _variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        todo!()
+        self.writer.write_all("*2\r\n".as_bytes())?;
+        self.serialize_u32(variant_index)?;
+        self.writer.write_all(format!("*{}\r\n", len).as_bytes())?;
+        Ok(self)
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        todo!()
+        match len {
+            Some(len) => self.writer.write_all(format!("*{}\r\n", len).as_bytes())?,
+            None => unimplemented!(
+                "Maps without a known length before iterating are not supported by this serialization format"
+            ),
+        };
+        Ok(self)
     }
 
-    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        todo!()
+    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        self.writer.write_all(format!("*{}\r\n", len).as_bytes())?;
+        Ok(self)
     }
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         variant_index: u32,
-        variant: &'static str,
+        _variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        todo!()
+        self.writer.write_all("*2\r\n".as_bytes())?;
+        self.serialize_u32(variant_index)?;
+        self.writer.write_all(format!("*{}\r\n", len).as_bytes())?;
+        Ok(self)
     }
 }
 
@@ -264,11 +278,12 @@ impl<'a, 'writer, W: io::Write> ser::SerializeTupleStruct for &'a mut Serializer
     where
         T: Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        todo!()
+        self.writer.write_all("\r\n".as_bytes())?;
+        Ok(())
     }
 }
 
@@ -281,11 +296,12 @@ impl<'a, 'writer, W: io::Write> ser::SerializeTupleVariant for &'a mut Serialize
     where
         T: Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        todo!()
+        self.writer.write_all("\r\n\r\n".as_bytes())?;
+        Ok(())
     }
 }
 
@@ -298,18 +314,22 @@ impl<'a, 'writer, W: io::Write> ser::SerializeMap for &'a mut Serializer<'writer
     where
         T: Serialize,
     {
-        todo!()
+        self.writer.write_all("*2\r\n".as_bytes())?;
+        key.serialize(&mut **self)
     }
 
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
     where
         T: Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)?;
+        self.writer.write_all("\r\n".as_bytes())?;
+        Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
-        todo!()
+        self.writer.write_all("\r\n".as_bytes())?;
+        Ok(())
     }
 }
 
@@ -322,11 +342,16 @@ impl<'a, 'writer, W: io::Write> ser::SerializeStruct for &'a mut Serializer<'wri
     where
         T: Serialize,
     {
-        todo!()
+        self.writer.write_all("*2\r\n".as_bytes())?;
+        key.serialize(&mut **self)?;
+        value.serialize(&mut **self)?;
+        self.writer.write_all("\r\n".as_bytes())?;
+        Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
-        todo!()
+        self.writer.write_all("\r\n".as_bytes())?;
+        Ok(())
     }
 }
 
@@ -339,10 +364,15 @@ impl<'a, 'writer, W: io::Write> ser::SerializeStructVariant for &'a mut Serializ
     where
         T: Serialize,
     {
-        todo!()
+        self.writer.write_all("*2\r\n".as_bytes())?;
+        key.serialize(&mut **self)?;
+        value.serialize(&mut **self)?;
+        self.writer.write_all("\r\n".as_bytes())?;
+        Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
-        todo!()
+        self.writer.write_all("\r\n\r\n".as_bytes())?;
+        Ok(())
     }
 }
