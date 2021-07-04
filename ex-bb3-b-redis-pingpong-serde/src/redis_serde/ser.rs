@@ -87,7 +87,7 @@ impl<'a, 'writer, W: io::Write> ser::Serializer for &'a mut Serializer<'writer, 
     }
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
-        self.writer.write_all(format!(":{}\r\n", v).as_bytes())?;
+        self.writer.write_all(format!("+{}\r\n", v).as_bytes())?;
         Ok(())
     }
 

@@ -88,6 +88,18 @@ fn test_u64() -> Result<()> {
 }
 
 #[test]
+fn test_f32() -> Result<()> {
+    assert!(false);
+    todo!()
+}
+
+#[test]
+fn test_f64() -> Result<()> {
+    assert!(false);
+    todo!()
+}
+
+#[test]
 fn test_char() -> Result<()> {
     let chars_to_test = [
         '\0', '\t', '\r', '\n', 'A', 'Z', 'a', 'z', '0', '9', '!', ')', '~', '∑', '𖿢',
