@@ -10,6 +10,14 @@ fn test_integer<T: Display + Serialize>(value: T) -> Result<()> {
     Ok(())
 }
 
+fn test_float<T: Display + Serialize>(value: T) -> Result<()> {
+    let expected = format!("+{}\r\n", value);
+    let mut actual = Vec::<u8>::new();
+    to_writer(&mut io::BufWriter::new(&mut actual), &value)?;
+    assert_eq!(expected.as_bytes(), actual.as_slice());
+    Ok(())
+}
+
 #[test]
 fn test_bool() -> Result<()> {
     let mut buf = Vec::<u8>::new();
@@ -89,14 +97,20 @@ fn test_u64() -> Result<()> {
 
 #[test]
 fn test_f32() -> Result<()> {
-    assert!(false);
-    todo!()
+    test_float(f32::MIN)?;
+    test_float(-1_f32)?;
+    test_float(0_f32)?;
+    test_float(1_f32)?;
+    test_float(f32::MAX)
 }
 
 #[test]
 fn test_f64() -> Result<()> {
-    assert!(false);
-    todo!()
+    test_float(f64::MIN)?;
+    test_float(-1_f64)?;
+    test_float(0_f64)?;
+    test_float(1_f64)?;
+    test_float(f64::MAX)
 }
 
 #[test]
@@ -155,7 +169,10 @@ fn test_bytes() -> Result<()> {
         let mut expected = format!("${}\r\n", bytes.len()).as_bytes().to_vec();
         expected.append(&mut bytes.to_vec());
         expected.append(&mut "\r\n".as_bytes().to_vec());
-        bytes_to_writer(&mut io::BufWriter::new(&mut buf), bytes)?;
+        to_writer(
+            &mut io::BufWriter::new(&mut buf),
+            serde_bytes::ByteBuf::from(bytes),
+        )?;
         assert_eq!(expected.as_slice(), buf.as_slice());
         buf.clear();
     }

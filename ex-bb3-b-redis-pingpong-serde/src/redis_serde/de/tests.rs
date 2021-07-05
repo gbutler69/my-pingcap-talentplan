@@ -92,15 +92,51 @@ fn test_f64() -> Result<()> {
 
 #[test]
 fn test_char() -> Result<()> {
-    todo!()
+    let min = '\0';
+    let max = char::MAX;
+    let input = format!(":{}\r\n:{}\r\n", min as u32, max as u32);
+    let reader = &mut io::BufReader::new(input.as_bytes());
+
+    assert_eq!(min, from_reader(reader)?);
+    assert_eq!(max, from_reader(reader)?);
+
+    Ok(())
 }
 
 #[test]
 fn test_string() -> Result<()> {
-    todo!()
+    let string1 = "This is a test".to_owned();
+    let string2 = "This is also\r\na test...∑, 𖿢".to_owned();
+    let input = format!("+{}\r\n${}\r\n{}\r\n", string1, string2.len(), string2);
+    let reader = &mut io::BufReader::new(input.as_bytes());
+
+    assert_eq!(string1, from_reader::<_, String>(reader)?);
+    assert_eq!(string2, from_reader::<_, String>(reader)?);
+
+    Ok(())
 }
 
 #[test]
 fn test_byte_buf() -> Result<()> {
-    todo!()
+    let string1 = "This is a test".to_owned();
+    let string2 = "This is also\r\na test...∑, 𖿢".to_owned();
+    let input = format!(
+        "${}\r\n{}\r\n${}\r\n{}\r\n",
+        string1.len(),
+        string1,
+        string2.len(),
+        string2
+    );
+    let reader = &mut io::BufReader::new(input.as_bytes());
+
+    assert_eq!(
+        string1.as_bytes(),
+        from_reader::<_, serde_bytes::ByteBuf>(reader)?.into_vec()
+    );
+    assert_eq!(
+        string2.as_bytes(),
+        from_reader::<_, serde_bytes::ByteBuf>(reader)?.into_vec()
+    );
+
+    Ok(())
 }

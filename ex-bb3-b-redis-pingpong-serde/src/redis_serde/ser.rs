@@ -23,16 +23,6 @@ where
     Ok(())
 }
 
-pub fn bytes_to_writer<W>(writer: &mut io::BufWriter<W>, value: &[u8]) -> Result<()>
-where
-    W: io::Write,
-{
-    let mut serializer = self::Serializer { writer };
-    use serde::Serializer;
-    serializer.serialize_bytes(value)?;
-    Ok(())
-}
-
 impl<'a, 'writer, W: io::Write> ser::Serializer for &'a mut Serializer<'writer, W> {
     type Ok = ();
     type Error = Error;
@@ -83,7 +73,8 @@ impl<'a, 'writer, W: io::Write> ser::Serializer for &'a mut Serializer<'writer, 
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
-        self.serialize_f64(v as f64)
+        self.writer.write_all(format!("+{}\r\n", v).as_bytes())?;
+        Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {

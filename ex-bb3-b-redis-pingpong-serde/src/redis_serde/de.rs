@@ -156,7 +156,10 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
                 self.reader.read_exact(buf.as_mut())?;
                 let final_delimiter = self.peekn(2)?;
                 match final_delimiter {
-                    [0xD, 0xA] => Ok(buf),
+                    [0xD, 0xA] => {
+                        self.consume(2);
+                        Ok(buf)
+                    }
                     input => Err(Error {
                         kind: ErrorKind::DataError,
                         message: format!(
