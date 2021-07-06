@@ -333,8 +333,7 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
         V: de::Visitor<'de>,
     {
         match self.peekn(5)? {
-            /* $-1\r\n */
-            [0x24, 0x2D, 0x30, 0xD, 0xA] => {
+            b"$-1\r\n" => {
                 self.consume(5);
                 visitor.visit_none()
             }
@@ -346,47 +345,109 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peekn(4)? {
+            b"*0\r\n" => visitor.visit_unit(),
+            input => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected 0 length sequence for unit tuple/struct, found input: {:?}",
+                    input
+                ),
+            }),
+        }
     }
 
-    fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        self.deserialize_unit(visitor)
     }
 
-    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peek()? {
+            Some(b'*') => {
+                self.consume(1);
+                let element_count = self.read_line()?.parse::<u32>()?;
+                visitor.visit_seq(DeserializerSeqElements {
+                    de: self,
+                    element_count,
+                })
+            }
+            Some(input) => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected * for input for beginning of sequence, found: {:?}",
+                    input
+                ),
+            }),
+            None => Err(Error {
+                kind: ErrorKind::DataError,
+                message:
+                    "Expected * for input for beginning of sequence. Empty input/EOF found instead."
+                        .into(),
+            }),
+        }
     }
 
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peek()? {
+            Some(b'*') => {
+                self.consume(1);
+                let element_count = self.read_line()?.parse::<u32>()?;
+                if len != element_count as usize {
+                    return Err(Error {
+                        kind: ErrorKind::DataError,
+                        message: format!(
+                            "Expected tuple of length {}, found length {}",
+                            len, element_count
+                        ),
+                    });
+                }
+                visitor.visit_seq(DeserializerSeqElements {
+                    de: self,
+                    element_count,
+                })
+            }
+            Some(input) => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected * for input for beginning of tuple, found: {:?}",
+                    input
+                ),
+            }),
+            None => Err(Error {
+                kind: ErrorKind::DataError,
+                message:
+                    "Expected * for input for beginning of tuple. Empty input/EOF found instead."
+                        .into(),
+            }),
+        }
     }
 
     fn deserialize_tuple_struct<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         len: usize,
         visitor: V,
     ) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        self.deserialize_tuple(len, visitor)
     }
 
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
@@ -432,5 +493,39 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
         V: de::Visitor<'de>,
     {
         todo!()
+    }
+}
+
+struct DeserializerSeqElements<'a, 'de: 'a, R: io::Read> {
+    de: &'a mut Deserializer<'de, R>,
+    element_count: u32,
+}
+
+impl<'de, 'a, R: io::Read> de::SeqAccess<'de> for DeserializerSeqElements<'a, 'de, R> {
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        if self.element_count == 0 {
+            match self.de.peekn(2)? {
+                b"\r\n" => {
+                    self.de.consume(2);
+                    return Ok(None);
+                }
+                input => {
+                    return Err(Error {
+                        kind: ErrorKind::DataError,
+                        message: format!(
+                            "Expected trailing CR\\LF pair at end of sequence, Found input: {:?}",
+                            input
+                        ),
+                    });
+                }
+            }
+        }
+        self.element_count -= 1;
+        seed.deserialize(&mut *self.de).map(Some)
     }
 }
