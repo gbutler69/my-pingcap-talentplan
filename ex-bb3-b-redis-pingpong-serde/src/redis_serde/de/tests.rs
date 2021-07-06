@@ -140,3 +140,36 @@ fn test_byte_buf() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_option() -> Result<()> {
+    let string1 = "This is a test".to_owned();
+    let string2 = "This is also\r\na test...∑, 𖿢".to_owned();
+    let num1 = 8_u8;
+    let num2 = 16_u16;
+    let num3 = 32_u32;
+    let num4 = 64_u64;
+    let input = format!(
+        "+{string1}\r\n$-1\r\n${len_string2}\r\n{string2}\r\n$-1\r\n:{num1}\r\n:{num2}\r\n$-1\r\n:{num3}\r\n:{num4}\r\n",
+        string1 = string1,
+        len_string2 = string2.len(),
+        string2 = string2,
+        num1 = num1,
+        num2 = num2,
+        num3 = num3,
+        num4 = num4
+    );
+    let reader = &mut io::BufReader::new(input.as_bytes());
+
+    assert_eq!(Some(string1), from_reader(reader)?);
+    assert_eq!(None, from_reader::<_, Option<String>>(reader)?);
+    // assert_eq!(Some(string2), from_reader(reader)?);
+    assert_eq!(None, from_reader::<_, Option<u8>>(reader)?);
+    // assert_eq!(Some(num1), from_reader(reader)?);
+    // assert_eq!(Some(num2), from_reader(reader)?);
+    // assert_eq!(None, from_reader::<_, Option<f64>>(reader)?);
+    // assert_eq!(Some(num3), from_reader(reader)?);
+    // assert_eq!(Some(num4), from_reader(reader)?);
+
+    Ok(())
+}

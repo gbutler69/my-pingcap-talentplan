@@ -3,10 +3,7 @@ mod tests;
 
 use super::error;
 
-use std::{
-    convert::{TryFrom, TryInto},
-    io::{self, BufRead, Read},
-};
+use std::io::{self, BufRead, Read};
 
 use serde::{de, Deserialize};
 
@@ -335,7 +332,14 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peekn(5)? {
+            /* $-1\r\n */
+            [0x24, 0x2D, 0x30, 0xD, 0xA] => {
+                self.consume(5);
+                visitor.visit_none()
+            }
+            _ => visitor.visit_some(self),
+        }
     }
 
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
