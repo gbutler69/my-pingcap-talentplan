@@ -454,7 +454,29 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peek()? {
+            Some(b'*') => {
+                self.consume(1);
+                let element_count = self.read_line()?.parse::<u32>()?;
+                visitor.visit_map(DeserializerSeqElements {
+                    de: self,
+                    element_count,
+                })
+            }
+            Some(input) => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected * for input for beginning of Map, found: {:?}",
+                    input
+                ),
+            }),
+            None => Err(Error {
+                kind: ErrorKind::DataError,
+                message:
+                    "Expected * for input for beginning of Map. Empty input/EOF found instead."
+                        .into(),
+            }),
+        }
     }
 
     fn deserialize_struct<V>(
@@ -527,5 +549,79 @@ impl<'de, 'a, R: io::Read> de::SeqAccess<'de> for DeserializerSeqElements<'a, 'd
         }
         self.element_count -= 1;
         seed.deserialize(&mut *self.de).map(Some)
+    }
+}
+
+impl<'de, 'a, R: io::Read> de::MapAccess<'de> for DeserializerSeqElements<'a, 'de, R> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.element_count == 0 {
+            match self.de.peekn(2)? {
+                b"\r\n" => {
+                    self.de.consume(2);
+                    return Ok(None);
+                }
+                input => {
+                    return Err(Error {
+                        kind: ErrorKind::DataError,
+                        message: format!(
+                            "Expected trailing CR\\LF pair at end of map, Found input: {:?}",
+                            input
+                        ),
+                    });
+                }
+            }
+        }
+        self.element_count -= 1;
+        match self.de.peek()? {
+            Some(b'*') => {
+                self.de.consume(1);
+                match self.de.read_line()?.parse::<u32>()? {
+                    2 => seed.deserialize(&mut *self.de).map(Some),
+                    input => Err(Error {
+                        kind: ErrorKind::DataError,
+                        message: format!(
+                            "Expected len 2 for pair/entry of map, Found input: {:?}",
+                            input
+                        ),
+                    }),
+                }
+            }
+            Some(input) => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected * at beginning of map pair/entry, Found input: {:?}",
+                    input
+                ),
+            }),
+            None => Err(Error {
+                kind: ErrorKind::DataError,
+                message: "Expected * at beginning of map pair/entry, Found Nothing/EOF".into(),
+            }),
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        let v = seed.deserialize(&mut *self.de);
+        match self.de.peekn(2)? {
+            b"\r\n" => self.de.consume(2),
+            input => {
+                return Err(Error {
+                    kind: ErrorKind::DataError,
+                    message: format!(
+                        "Expected trailing CR\\LF at end of map pair/entry, Found input: {:?}",
+                        input
+                    ),
+                })
+            }
+        }
+        v
     }
 }

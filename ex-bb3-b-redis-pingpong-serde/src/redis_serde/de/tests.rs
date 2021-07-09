@@ -373,3 +373,34 @@ mod test_tuple_struct {
         Ok(())
     }
 }
+
+mod test_map {
+    use std::collections::HashMap;
+
+    use super::super::*;
+
+    #[test]
+    fn test_map() -> Result<()> {
+        let mut expected_map = HashMap::new();
+        expected_map.insert(1, "test1".to_owned());
+        expected_map.insert(2, "test2".into());
+        expected_map.insert(3, "test3".into());
+        expected_map.insert(4, "test4".into());
+        expected_map.insert(5, "test5".into());
+        let expected_map = expected_map;
+
+        let input = "*5\r\n\
+        *2\r\n:1\r\n+test1\r\n\r\n\
+        *2\r\n:2\r\n+test2\r\n\r\n\
+        *2\r\n:3\r\n+test3\r\n\r\n\
+        *2\r\n:4\r\n+test4\r\n\r\n\
+        *2\r\n:5\r\n+test5\r\n\r\n\
+        \r\n";
+
+        let reader = &mut io::BufReader::new(input.as_bytes());
+
+        assert_eq!(expected_map, from_reader(reader)?);
+
+        Ok(())
+    }
+}
