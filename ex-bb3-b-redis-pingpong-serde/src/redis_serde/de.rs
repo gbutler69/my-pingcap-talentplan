@@ -5,7 +5,10 @@ use super::error;
 
 use std::io::{self, BufRead, Read};
 
-use serde::{de, Deserialize};
+use serde::{
+    de::{self, IntoDeserializer},
+    Deserialize,
+};
 
 use error::{Error, ErrorKind, Result};
 
@@ -59,7 +62,7 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
     fn parse_u64(&mut self) -> Result<u64> {
         match self.peek()? {
             #[allow(clippy::char_lit_as_u8)]
-            Some(b) if b == ':' as u8 => {
+            Some(b':') => {
                 self.consume(1);
                 Ok(self.read_line()?.parse::<u64>()?)
             }
@@ -73,7 +76,7 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
     fn parse_i64(&mut self) -> Result<i64> {
         match self.peek()? {
             #[allow(clippy::char_lit_as_u8)]
-            Some(b) if b == ':' as u8 => {
+            Some(b':') => {
                 self.consume(1);
                 Ok(self.read_line()?.parse::<i64>()?)
             }
@@ -87,7 +90,7 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
     fn parse_f64(&mut self) -> Result<f64> {
         match self.peek()? {
             #[allow(clippy::char_lit_as_u8)]
-            Some(b) if b == '+' as u8 => {
+            Some(b'+') => {
                 self.consume(1);
                 Ok(self.read_line()?.parse::<f64>()?)
             }
@@ -101,7 +104,7 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
     fn parse_f32(&mut self) -> Result<f32> {
         match self.peek()? {
             #[allow(clippy::char_lit_as_u8)]
-            Some(b) if b == '+' as u8 => {
+            Some(b'+') => {
                 self.consume(1);
                 Ok(self.read_line()?.parse::<f32>()?)
             }
@@ -127,11 +130,11 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
     #[allow(clippy::char_lit_as_u8)]
     fn parse_string(&mut self) -> Result<String> {
         match self.peek()? {
-            Some(b) if b == '+' as u8 => {
+            Some(b'+') => {
                 self.consume(1);
                 Ok(self.read_line()?)
             }
-            Some(b) if b == '$' as u8 => Ok(String::from_utf8(self.parse_bytes()?)?),
+            Some(b'$') => Ok(String::from_utf8(self.parse_bytes()?)?),
             input => Err(Error {
                 kind: ErrorKind::DataError,
                 message: format!(
@@ -145,7 +148,7 @@ impl<'a, R: io::Read> Deserializer<'a, R> {
     #[allow(clippy::char_lit_as_u8)]
     fn parse_bytes(&mut self) -> Result<Vec<u8>> {
         match self.peek()? {
-            Some(b) if b == '$' as u8 => {
+            Some(b'$') => {
                 self.consume(1);
                 let len = self.read_line()?.parse::<usize>()?;
                 let mut buf = Vec::<u8>::with_capacity(len);
@@ -197,7 +200,7 @@ macro_rules! parse_number_and_apply_visitor {
 impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
@@ -346,7 +349,10 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
         V: de::Visitor<'de>,
     {
         match self.peekn(4)? {
-            b"*0\r\n" => visitor.visit_unit(),
+            b"*0\r\n" => {
+                self.consume(4);
+                visitor.visit_unit()
+            }
             input => Err(Error {
                 kind: ErrorKind::DataError,
                 message: format!(
@@ -417,10 +423,23 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
                         ),
                     });
                 }
-                visitor.visit_seq(DeserializerSeqElements {
+                let val = visitor.visit_seq(DeserializerSeqElements {
                     de: self,
                     element_count,
-                })
+                });
+                match self.peekn(2)? {
+                    b"\r\n" => self.consume(2),
+                    input => {
+                        return Err(Error {
+                            kind: ErrorKind::DataError,
+                            message: format!(
+                                "Expected CR\\LF at end of tuple, found input {:?}",
+                                input
+                            ),
+                        })
+                    }
+                }
+                val
             }
             Some(input) => Err(Error {
                 kind: ErrorKind::DataError,
@@ -481,36 +500,90 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
-        fields: &'static [&'static str],
+        _name: &'static str,
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        self.deserialize_map(visitor)
     }
 
     fn deserialize_enum<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peek()? {
+            Some(b':') => visitor.visit_enum(variants[self.parse_u64()? as usize].into_deserializer()),
+            Some(b'*') => match self.peekn(4)? {
+                b"*2\r\n" => {
+                    self.consume(4);
+                    let v = visitor.visit_enum(DeserializeEnum{de:self})?;
+                    match self.peekn(2)? {
+                        b"\r\n" => self.consume(2),
+                        input => return Err(Error {
+                                                    kind: ErrorKind::DataError,
+                                                    message: format!(
+                                                    "Expected CR\\LF at end of input for Enum, found: {:?}",
+                                                    input
+                                                    ),
+                                                })
+                    }
+                    Ok(v)
+                },
+                input => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected *2CR\\LF for input at beginning of Non-Unit Enum, found: {:?}",
+                    input
+                ),
+            })
+            },
+            Some(input) => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected * or : for input for beginning of Enum, found: {:?}",
+                    input
+                ),
+            }),
+            None => Err(Error {
+                kind: ErrorKind::DataError,
+                message:
+                    "Expected * or : for input for beginning of Enum. Empty input/EOF found instead."
+                        .into(),
+            }),
+        }
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        todo!()
+        match self.peek()? {
+            Some(b'+') => self.deserialize_string(visitor),
+            Some(b':') => self.deserialize_u32(visitor),
+            Some(input) => Err(Error {
+                kind: ErrorKind::DataError,
+                message: format!(
+                    "Expected + or : for input of Identifier, found: {:?}",
+                    input
+                ),
+            }),
+            None => Err(Error {
+                kind: ErrorKind::DataError,
+                message: "Expected + or : for input of Identifier. Empty input/EOF found instead."
+                    .into(),
+            }),
+        }
     }
 
-    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
@@ -623,5 +696,51 @@ impl<'de, 'a, R: io::Read> de::MapAccess<'de> for DeserializerSeqElements<'a, 'd
             }
         }
         v
+    }
+}
+
+struct DeserializeEnum<'a, 'de: 'a, R: io::Read> {
+    de: &'a mut Deserializer<'de, R>,
+}
+
+impl<'de, 'a, R: io::Read> de::EnumAccess<'de> for DeserializeEnum<'a, 'de, R> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        let val = seed.deserialize(&mut *self.de)?;
+        Ok((val, self))
+    }
+}
+
+impl<'de, 'a, R: io::Read> de::VariantAccess<'de> for DeserializeEnum<'a, 'de, R> {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        unimplemented!("should never be called - unit variants handled immediately")
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.de)
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        de::Deserializer::deserialize_tuple(self.de, len, visitor)
+    }
+
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        de::Deserializer::deserialize_map(self.de, visitor)
     }
 }

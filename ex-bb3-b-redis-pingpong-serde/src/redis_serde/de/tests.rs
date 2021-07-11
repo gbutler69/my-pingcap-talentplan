@@ -404,3 +404,111 @@ mod test_map {
         Ok(())
     }
 }
+
+mod test_struct {
+    use super::super::*;
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct TestStruct {
+        a_u32: u32,
+        a_f64: f64,
+        a_string: String,
+        another_string: String,
+        a_bool: bool,
+    }
+
+    #[test]
+    fn test_struct() -> Result<()> {
+        let expected = TestStruct {
+            a_u32: 32,
+            a_f64: -64.5,
+            a_string: "This is a test".into(),
+            another_string: "This is\r\nalso a test".into(),
+            a_bool: true,
+        };
+
+        let input = format!(
+            "*5\r\n\
+            *2\r\n+a_u32\r\n:32\r\n\r\n\
+            *2\r\n+a_f64\r\n+-64.5\r\n\r\n\
+            *2\r\n+a_string\r\n+{}\r\n\r\n\
+            *2\r\n+another_string\r\n${}\r\n{}\r\n\r\n\
+            *2\r\n+a_bool\r\n:1\r\n\r\n\
+            \r\n",
+            expected.a_string,
+            expected.another_string.len(),
+            expected.another_string
+        );
+
+        let reader = &mut io::BufReader::new(input.as_bytes());
+
+        assert_eq!(expected, from_reader(reader)?);
+
+        Ok(())
+    }
+}
+
+mod test_enum {
+    use super::super::*;
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    enum SimpleEnum {
+        Test1,
+        Test2,
+        Test3,
+        Test4,
+    }
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    enum ComplexEnum {
+        Au32(u32),
+        Af64(f64),
+        Astring(String),
+        Astruct {
+            a_u32: u32,
+            an_f64: f64,
+            a_tuple: (u32, u64),
+            an_array: [u32; 3],
+            an_enum: SimpleEnum,
+            a_string: String,
+            another_string: String,
+        },
+        AnotherString(String),
+        Abool(bool),
+    }
+
+    #[test]
+    fn test_enum() -> Result<()> {
+        let expected_simple = SimpleEnum::Test3;
+        let expected_complex = ComplexEnum::Astruct {
+            a_u32: 32,
+            an_f64: -64.5,
+            a_tuple: (32, 64),
+            an_array: [5, 7, 9],
+            an_enum: SimpleEnum::Test2,
+            a_string: "test1".into(),
+            another_string: "test\r\n2".into(),
+        };
+
+        let input = ":2\r\n\
+                          *2\r\n\
+                          :3\r\n\
+                          *7\r\n\
+                          *2\r\n+a_u32\r\n:32\r\n\r\n\
+                          *2\r\n+an_f64\r\n+-64.5\r\n\r\n\
+                          *2\r\n+a_tuple\r\n*2\r\n:32\r\n:64\r\n\r\n\r\n\
+                          *2\r\n+an_array\r\n*3\r\n:5\r\n:7\r\n:9\r\n\r\n\r\n\
+                          *2\r\n+an_enum\r\n:1\r\n\r\n\
+                          *2\r\n+a_string\r\n+test1\r\n\r\n\
+                          *2\r\n+another_string\r\n$7\r\ntest\r\n2\r\n\r\n\
+                          \r\n\
+                          \r\n";
+
+        let reader = &mut io::BufReader::new(input.as_bytes());
+
+        assert_eq!(expected_simple, from_reader(reader)?);
+        assert_eq!(expected_complex, from_reader(reader)?);
+
+        Ok(())
+    }
+}
