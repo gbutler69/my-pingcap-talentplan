@@ -385,7 +385,8 @@ mod test_newtype_variant {
 
     #[test]
     fn test_newtype_variant_bool() -> Result<()> {
-        let expected = "*2\r\n:0\r\n:1\r\n\r\n*2\r\n:0\r\n:0\r\n\r\n*2\r\n:0\r\n:0\r\n\r\n*2\r\n:0\r\n:1\r\n\r\n".as_bytes();
+        let expected =
+            "*2\r\n:0\r\n:1\r\n*2\r\n:0\r\n:0\r\n*2\r\n:0\r\n:0\r\n*2\r\n:0\r\n:1\r\n".as_bytes();
         let mut buf = Vec::new();
         {
             let mut buf_writer = io::BufWriter::new(&mut buf);
@@ -404,7 +405,7 @@ mod test_newtype_variant {
         let string2 = "This is\r\nalso a test".to_owned();
         let string3 = "This is another test...∑, 𖿢".to_owned();
         let expected = format!(
-            "*2\r\n:1\r\n+{}\r\n\r\n*2\r\n:1\r\n${}\r\n{}\r\n\r\n*2\r\n:1\r\n+{}\r\n\r\n",
+            "*2\r\n:1\r\n+{}\r\n*2\r\n:1\r\n${}\r\n{}\r\n*2\r\n:1\r\n+{}\r\n",
             string1,
             string2.len(),
             string2,
@@ -428,7 +429,7 @@ mod test_seq {
     #[test]
     fn test_seq_bool() -> Result<()> {
         let bools = [true, false, false, true];
-        let expected = "*4\r\n:1\r\n:0\r\n:0\r\n:1\r\n\r\n";
+        let expected = "*4\r\n:1\r\n:0\r\n:0\r\n:1\r\n";
         let mut buf = Vec::new();
         {
             let mut buf_writer = io::BufWriter::new(&mut buf);
@@ -442,7 +443,7 @@ mod test_seq {
     fn test_seq_i16() -> Result<()> {
         let i16s = [i16::MIN, -1, 0, 1, i16::MAX];
         let expected = format!(
-            "*5\r\n:{}\r\n:{}\r\n:{}\r\n:{}\r\n:{}\r\n\r\n",
+            "*5\r\n:{}\r\n:{}\r\n:{}\r\n:{}\r\n:{}\r\n",
             i16s[0], i16s[1], i16s[2], i16s[3], i16s[4]
         );
         let mut buf = Vec::new();
@@ -458,7 +459,7 @@ mod test_seq {
     fn test_seq_string() -> Result<()> {
         let strings = ["Test1", "Test\r\n2", "Test\r3", "Test4"];
         let expected = format!(
-            "*4\r\n+{}\r\n${}\r\n{}\r\n${}\r\n{}\r\n+{}\r\n\r\n",
+            "*4\r\n+{}\r\n${}\r\n{}\r\n${}\r\n{}\r\n+{}\r\n",
             strings[0],
             strings[1].len(),
             strings[1],
@@ -513,13 +514,10 @@ fn test_tuple() -> Result<()> {
     expected += format!(":{}\r\n", tuple.13 .1).as_str();
     expected += format!(":{}\r\n", tuple.13 .2).as_str();
     expected += format!("+{}\r\n", tuple.13 .3).as_str();
-    expected += "\r\n";
     expected += "*3\r\n";
     expected += format!(":{}\r\n", tuple.14[0]).as_str();
     expected += format!(":{}\r\n", tuple.14[1]).as_str();
     expected += format!(":{}\r\n", tuple.14[2]).as_str();
-    expected += "\r\n";
-    expected += "\r\n";
 
     let mut buf = Vec::new();
     {
@@ -590,13 +588,10 @@ mod test_tuple_struct {
         expected += format!(":{}\r\n", tuple.13 .1).as_str();
         expected += format!(":{}\r\n", tuple.13 .2).as_str();
         expected += format!("+{}\r\n", tuple.13 .3).as_str();
-        expected += "\r\n";
         expected += "*3\r\n";
         expected += format!(":{}\r\n", tuple.14[0]).as_str();
         expected += format!(":{}\r\n", tuple.14[1]).as_str();
         expected += format!(":{}\r\n", tuple.14[2]).as_str();
-        expected += "\r\n";
-        expected += "\r\n";
 
         let mut buf = Vec::new();
         {
@@ -690,14 +685,10 @@ mod test_tuple_variant {
                 expected += format!(":{}\r\n", t13.1).as_str();
                 expected += format!(":{}\r\n", t13.2).as_str();
                 expected += format!("+{}\r\n", t13.3).as_str();
-                expected += "\r\n";
                 expected += "*3\r\n";
                 expected += format!(":{}\r\n", t14[0]).as_str();
                 expected += format!(":{}\r\n", t14[1]).as_str();
                 expected += format!(":{}\r\n", t14[2]).as_str();
-                expected += "\r\n";
-                expected += "\r\n";
-                expected += "\r\n";
             }
             _ => unreachable!("should never happen"),
         }
@@ -731,9 +722,7 @@ mod test_map {
             expected += "*2\r\n";
             expected += format!(":{}\r\n", k).as_str();
             expected += format!("+{}\r\n", v).as_str();
-            expected += "\r\n";
         }
-        expected += "\r\n";
 
         let mut buf = Vec::new();
         {
@@ -768,15 +757,14 @@ mod test_struct {
         };
 
         let mut expected = "*4\r\n".to_owned();
-        expected += format!("*2\r\n+field1\r\n:{}\r\n\r\n", test_struct.field1).as_str();
+        expected += format!("*2\r\n+field1\r\n:{}\r\n", test_struct.field1).as_str();
         expected += format!(
-            "*2\r\n+field2\r\n:{}\r\n\r\n",
+            "*2\r\n+field2\r\n:{}\r\n",
             if test_struct.field2 { 1 } else { 0 }
         )
         .as_str();
-        expected += format!("*2\r\n+field3\r\n+{}\r\n\r\n", test_struct.field3).as_str();
-        expected += format!("*2\r\n+field4\r\n:{}\r\n\r\n", test_struct.field4).as_str();
-        expected += "\r\n";
+        expected += format!("*2\r\n+field3\r\n+{}\r\n", test_struct.field3).as_str();
+        expected += format!("*2\r\n+field4\r\n:{}\r\n", test_struct.field4).as_str();
 
         let mut buf = Vec::new();
         {
@@ -822,15 +810,14 @@ mod test_struct_variant {
                 ref field3,
                 ref field4,
             } => {
-                expected += format!("*2\r\n+field1\r\n:{}\r\n\r\n", field1).as_str();
+                expected += format!("*2\r\n+field1\r\n:{}\r\n", field1).as_str();
                 expected +=
-                    format!("*2\r\n+field2\r\n:{}\r\n\r\n", if *field2 { 1 } else { 0 }).as_str();
-                expected += format!("*2\r\n+field3\r\n+{}\r\n\r\n", field3).as_str();
-                expected += format!("*2\r\n+field4\r\n:{}\r\n\r\n", field4).as_str();
+                    format!("*2\r\n+field2\r\n:{}\r\n", if *field2 { 1 } else { 0 }).as_str();
+                expected += format!("*2\r\n+field3\r\n+{}\r\n", field3).as_str();
+                expected += format!("*2\r\n+field4\r\n:{}\r\n", field4).as_str();
             }
             _ => unreachable!("this will never happen"),
         }
-        expected += "\r\n\r\n";
 
         let mut buf = Vec::new();
         {

@@ -244,9 +244,9 @@ mod test_seq {
         let expected_bools = [true, false, false, true, false];
 
         let input = format!(
-            "*2\r\n:{u32_0}\r\n:{u32_1}\r\n\r\n\
-            *3\r\n+{string1}\r\n+{string2}\r\n${string3_len}\r\n{string3}\r\n\r\n\
-            *5\r\n:{bool1}\r\n:{bool2}\r\n:{bool3}\r\n:{bool4}\r\n:{bool5}\r\n\r\n",
+            "*2\r\n:{u32_0}\r\n:{u32_1}\r\n\
+            *3\r\n+{string1}\r\n+{string2}\r\n${string3_len}\r\n{string3}\r\n\
+            *5\r\n:{bool1}\r\n:{bool2}\r\n:{bool3}\r\n:{bool4}\r\n:{bool5}\r\n",
             u32_0 = expected_u32s[0],
             u32_1 = expected_u32s[1],
             string1 = expected_strings[0],
@@ -294,8 +294,7 @@ mod test_tuple {
             "*10\r\n\
             :{u32_0}\r\n:{u32_1}\r\n\
             +{string1}\r\n+{string2}\r\n${string3_len}\r\n{string3}\r\n\
-            :{bool1}\r\n:{bool2}\r\n:{bool3}\r\n:{bool4}\r\n:{bool5}\r\n\
-            \r\n",
+            :{bool1}\r\n:{bool2}\r\n:{bool3}\r\n:{bool4}\r\n:{bool5}\r\n",
             u32_0 = expected.0,
             u32_1 = expected.1,
             string1 = expected.2,
@@ -352,8 +351,7 @@ mod test_tuple_struct {
             "*10\r\n\
             :{u32_0}\r\n:{u32_1}\r\n\
             +{string1}\r\n+{string2}\r\n${string3_len}\r\n{string3}\r\n\
-            :{bool1}\r\n:{bool2}\r\n:{bool3}\r\n:{bool4}\r\n:{bool5}\r\n\
-            \r\n",
+            :{bool1}\r\n:{bool2}\r\n:{bool3}\r\n:{bool4}\r\n:{bool5}\r\n",
             u32_0 = expected.0,
             u32_1 = expected.1,
             string1 = expected.2,
@@ -390,12 +388,11 @@ mod test_map {
         let expected_map = expected_map;
 
         let input = "*5\r\n\
-        *2\r\n:1\r\n+test1\r\n\r\n\
-        *2\r\n:2\r\n+test2\r\n\r\n\
-        *2\r\n:3\r\n+test3\r\n\r\n\
-        *2\r\n:4\r\n+test4\r\n\r\n\
-        *2\r\n:5\r\n+test5\r\n\r\n\
-        \r\n";
+        *2\r\n:1\r\n+test1\r\n\
+        *2\r\n:2\r\n+test2\r\n\
+        *2\r\n:3\r\n+test3\r\n\
+        *2\r\n:4\r\n+test4\r\n\
+        *2\r\n:5\r\n+test5\r\n";
 
         let reader = &mut io::BufReader::new(input.as_bytes());
 
@@ -429,12 +426,11 @@ mod test_struct {
 
         let input = format!(
             "*5\r\n\
-            *2\r\n+a_u32\r\n:32\r\n\r\n\
-            *2\r\n+a_f64\r\n+-64.5\r\n\r\n\
-            *2\r\n+a_string\r\n+{}\r\n\r\n\
-            *2\r\n+another_string\r\n${}\r\n{}\r\n\r\n\
-            *2\r\n+a_bool\r\n:1\r\n\r\n\
-            \r\n",
+            *2\r\n+a_u32\r\n:32\r\n\
+            *2\r\n+a_f64\r\n+-64.5\r\n\
+            *2\r\n+a_string\r\n+{}\r\n\
+            *2\r\n+another_string\r\n${}\r\n{}\r\n\
+            *2\r\n+a_bool\r\n:1\r\n",
             expected.a_string,
             expected.another_string.len(),
             expected.another_string
@@ -494,15 +490,13 @@ mod test_enum {
                           *2\r\n\
                           :3\r\n\
                           *7\r\n\
-                          *2\r\n+a_u32\r\n:32\r\n\r\n\
-                          *2\r\n+an_f64\r\n+-64.5\r\n\r\n\
-                          *2\r\n+a_tuple\r\n*2\r\n:32\r\n:64\r\n\r\n\r\n\
-                          *2\r\n+an_array\r\n*3\r\n:5\r\n:7\r\n:9\r\n\r\n\r\n\
-                          *2\r\n+an_enum\r\n:1\r\n\r\n\
-                          *2\r\n+a_string\r\n+test1\r\n\r\n\
-                          *2\r\n+another_string\r\n$7\r\ntest\r\n2\r\n\r\n\
-                          \r\n\
-                          \r\n";
+                          *2\r\n+a_u32\r\n:32\r\n\
+                          *2\r\n+an_f64\r\n+-64.5\r\n\
+                          *2\r\n+a_tuple\r\n*2\r\n:32\r\n:64\r\n\
+                          *2\r\n+an_array\r\n*3\r\n:5\r\n:7\r\n:9\r\n\
+                          *2\r\n+an_enum\r\n:1\r\n\
+                          *2\r\n+a_string\r\n+test1\r\n\
+                          *2\r\n+another_string\r\n$7\r\ntest\r\n2\r\n";
 
         let reader = &mut io::BufReader::new(input.as_bytes());
 

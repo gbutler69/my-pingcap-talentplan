@@ -1,4 +1,4 @@
-#![cfg(test)]
+#[cfg(test)]
 mod tests;
 
 use super::error;
@@ -423,23 +423,10 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
                         ),
                     });
                 }
-                let val = visitor.visit_seq(DeserializerSeqElements {
+                visitor.visit_seq(DeserializerSeqElements {
                     de: self,
                     element_count,
-                });
-                match self.peekn(2)? {
-                    b"\r\n" => self.consume(2),
-                    input => {
-                        return Err(Error {
-                            kind: ErrorKind::DataError,
-                            message: format!(
-                                "Expected CR\\LF at end of tuple, found input {:?}",
-                                input
-                            ),
-                        })
-                    }
-                }
-                val
+                })
             }
             Some(input) => Err(Error {
                 kind: ErrorKind::DataError,
@@ -524,18 +511,7 @@ impl<'de, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Deserializer<'de, R
             Some(b'*') => match self.peekn(4)? {
                 b"*2\r\n" => {
                     self.consume(4);
-                    let v = visitor.visit_enum(DeserializeEnum{de:self})?;
-                    match self.peekn(2)? {
-                        b"\r\n" => self.consume(2),
-                        input => return Err(Error {
-                                                    kind: ErrorKind::DataError,
-                                                    message: format!(
-                                                    "Expected CR\\LF at end of input for Enum, found: {:?}",
-                                                    input
-                                                    ),
-                                                })
-                    }
-                    Ok(v)
+                    Ok(visitor.visit_enum(DeserializeEnum{de:self})?)
                 },
                 input => Err(Error {
                 kind: ErrorKind::DataError,
@@ -604,21 +580,7 @@ impl<'de, 'a, R: io::Read> de::SeqAccess<'de> for DeserializerSeqElements<'a, 'd
         T: de::DeserializeSeed<'de>,
     {
         if self.element_count == 0 {
-            match self.de.peekn(2)? {
-                b"\r\n" => {
-                    self.de.consume(2);
-                    return Ok(None);
-                }
-                input => {
-                    return Err(Error {
-                        kind: ErrorKind::DataError,
-                        message: format!(
-                            "Expected trailing CR\\LF pair at end of sequence, Found input: {:?}",
-                            input
-                        ),
-                    });
-                }
-            }
+            return Ok(None);
         }
         self.element_count -= 1;
         seed.deserialize(&mut *self.de).map(Some)
@@ -633,21 +595,7 @@ impl<'de, 'a, R: io::Read> de::MapAccess<'de> for DeserializerSeqElements<'a, 'd
         K: de::DeserializeSeed<'de>,
     {
         if self.element_count == 0 {
-            match self.de.peekn(2)? {
-                b"\r\n" => {
-                    self.de.consume(2);
-                    return Ok(None);
-                }
-                input => {
-                    return Err(Error {
-                        kind: ErrorKind::DataError,
-                        message: format!(
-                            "Expected trailing CR\\LF pair at end of map, Found input: {:?}",
-                            input
-                        ),
-                    });
-                }
-            }
+            return Ok(None);
         }
         self.element_count -= 1;
         match self.de.peek()? {
@@ -682,20 +630,7 @@ impl<'de, 'a, R: io::Read> de::MapAccess<'de> for DeserializerSeqElements<'a, 'd
     where
         V: de::DeserializeSeed<'de>,
     {
-        let v = seed.deserialize(&mut *self.de);
-        match self.de.peekn(2)? {
-            b"\r\n" => self.de.consume(2),
-            input => {
-                return Err(Error {
-                    kind: ErrorKind::DataError,
-                    message: format!(
-                        "Expected trailing CR\\LF at end of map pair/entry, Found input: {:?}",
-                        input
-                    ),
-                })
-            }
-        }
-        v
+        seed.deserialize(&mut *self.de)
     }
 }
 

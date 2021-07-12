@@ -1,9 +1,9 @@
-#![cfg(test)]
+#[cfg(test)]
+mod tests;
 
 use std::{io, num, string};
 
 use serde::{de, ser};
-mod tests;
 
 #[derive(Debug)]
 pub enum ErrorKind {
