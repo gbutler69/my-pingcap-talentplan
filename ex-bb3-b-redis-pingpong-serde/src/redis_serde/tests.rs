@@ -62,6 +62,8 @@ mod test_complicated_serialization_deserialization_integrated {
         a_char: char,
         a_str: String,
         byte_array: [u8; 4],
+        #[serde(with = "serde_bytes")]
+        byte_array_as_bytes: Vec<u8>,
         a_none: Option<u32>,
         a_some: Option<String>,
         a_unit: (),
@@ -104,6 +106,7 @@ mod test_complicated_serialization_deserialization_integrated {
             a_char: 'c',
             a_str: "TestString1".into(),
             byte_array: [2, 4, 6, 8],
+            byte_array_as_bytes: [1, 2, 3, 4, 5, 6, 7, 8].to_vec(),
             a_none: None,
             a_some: Some("TestString2".into()),
             a_unit: (),
