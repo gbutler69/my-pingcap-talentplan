@@ -6,6 +6,8 @@ mod error;
 mod de;
 mod ser;
 
+use std::{io, net};
+
 pub use de::from_reader;
 pub use ser::to_writer;
 
@@ -17,16 +19,38 @@ enum Command {
     Pong,
 }
 
-pub(crate) fn handle_command(
-    read_stream: std::io::BufReader<std::net::TcpStream>,
-    write_stream: std::io::BufWriter<std::net::TcpStream>,
+pub fn handle_command<R: io::Read, W: io::Write>(
+    reader: &mut io::BufReader<R>,
+    writer: &mut io::BufWriter<W>,
 ) -> Result<()> {
-    todo!()
+    match from_reader::<_, Command>(reader)? {
+        Command::Ping => {
+            println!("Ping Received.");
+            to_writer(writer, Command::Pong)?;
+            println!("Pong Sent!");
+            Ok(())
+        }
+        _ => Err(Error {
+            kind: ErrorKind::DataError,
+            message: "Expected a Ping Command. Received something else.".into(),
+        }),
+    }
 }
 
-pub(crate) fn send_ping_and_handle_response(
-    read_stream: std::io::BufReader<std::net::TcpStream>,
-    write_stream: std::io::BufWriter<std::net::TcpStream>,
+pub fn send_ping_and_handle_response<R: io::Read, W: io::Write>(
+    reader: &mut io::BufReader<R>,
+    writer: &mut io::BufWriter<W>,
 ) -> Result<()> {
-    todo!()
+    to_writer(writer, Command::Ping)?;
+    println!("Ping Sent.");
+    match from_reader::<_, Command>(reader)? {
+        Command::Pong => {
+            println!("Pong Received!");
+            Ok(())
+        }
+        _ => Err(Error {
+            kind: ErrorKind::DataError,
+            message: "Expected a Pong Response. Received something else.".into(),
+        }),
+    }
 }

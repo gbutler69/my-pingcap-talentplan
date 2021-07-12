@@ -20,6 +20,7 @@ where
 {
     let mut serializer = Serializer { writer };
     value.serialize(&mut serializer)?;
+    serializer.writer.flush()?;
     Ok(())
 }
 

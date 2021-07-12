@@ -71,16 +71,17 @@ fn start_server(listen_on: vec::IntoIter<net::SocketAddr>) -> Result<(), Box<dyn
 }
 
 fn handle_connection(stream: net::TcpStream) -> Result<(), Box<dyn Error>> {
-    let read_stream = io::BufReader::new(stream.try_clone()?);
-    let write_stream = io::BufWriter::new(stream);
-    Ok(redis_serde::handle_command(read_stream, write_stream)?)
+    Ok(redis_serde::handle_command(
+        &mut io::BufReader::new(stream.try_clone()?),
+        &mut io::BufWriter::new(stream),
+    )?)
 }
 
 fn start_client(connect_to: vec::IntoIter<net::SocketAddr>) -> Result<(), Box<dyn Error>> {
-    let conn = net::TcpStream::connect(connect_to.collect::<Vec<_>>().as_slice())?;
+    let stream = net::TcpStream::connect(connect_to.collect::<Vec<_>>().as_slice())?;
     Ok(redis_serde::send_ping_and_handle_response(
-        io::BufReader::new(conn.try_clone()?),
-        io::BufWriter::new(conn),
+        &mut io::BufReader::new(stream.try_clone()?),
+        &mut io::BufWriter::new(stream),
     )?)
 }
 
