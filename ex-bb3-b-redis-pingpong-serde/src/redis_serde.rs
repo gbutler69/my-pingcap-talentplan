@@ -6,7 +6,7 @@ mod error;
 mod de;
 mod ser;
 
-use std::{io, net};
+use std::io;
 
 pub use de::from_reader;
 pub use ser::to_writer;
